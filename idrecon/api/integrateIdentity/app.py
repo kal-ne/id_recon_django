@@ -20,8 +20,8 @@ def handler(event):
         matched_phone = Contact.objects.filter(phone_number=req_phone).first() #, link_precedence = Contact.LinkPrecedence.PRIMARY)
         if matched_phone is None:
             new_contact = Contact(phone_number=req_phone, link_precedence=Contact.LinkPrecedence.PRIMARY)
-            saved_contact = new_contact.save()
-            matched_phone_pid = saved_contact.id
+            new_contact.save()
+            matched_phone_pid = new_contact.id
         else:
             if matched_phone.link_precedence == Contact.LinkPrecedence.PRIMARY:
                 matched_phone_pid = matched_phone.id
