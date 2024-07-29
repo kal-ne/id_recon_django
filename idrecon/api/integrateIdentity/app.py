@@ -1,4 +1,6 @@
+from collections import OrderedDict
 import json
+from django.forms import model_to_dict
 from idrecon.models import Contact
 from django.core.exceptions import ObjectDoesNotExist
 
@@ -21,7 +23,8 @@ def handler(event):
         if matched_phone is None:
             new_contact = Contact(phone_number=req_phone, link_precedence=Contact.LinkPrecedence.PRIMARY)
             new_contact.save()
-            matched_phone_pid = new_contact.id
+            saved_contact = Contact.objects.get(phone_number=req_phone, link_precedence=Contact.LinkPrecedence.PRIMARY)
+            matched_phone_pid = saved_contact.id
         else:
             if matched_phone.link_precedence == Contact.LinkPrecedence.PRIMARY:
                 matched_phone_pid = matched_phone.id
@@ -34,7 +37,8 @@ def handler(event):
         if matched_email is None:
             new_contact = Contact(email=req_email, link_precedence=Contact.LinkPrecedence.PRIMARY)
             new_contact.save()
-            matched_email_pid = new_contact.id
+            saved_contact = Contact.objects.get(email=req_email, link_precedence=Contact.LinkPrecedence.PRIMARY)
+            matched_email_pid = saved_contact.id
         else:
             if matched_email.link_precedence == Contact.LinkPrecedence.PRIMARY:
                 matched_email_pid = matched_email.id
@@ -52,7 +56,11 @@ def handler(event):
                                     link_precedence=Contact.LinkPrecedence.PRIMARY
                                 )
             new_contact.save()
-            matched_pid = new_contact.id
+            saved_contact = Contact.objects.get(phone_number=req_phone,
+                                    email=req_email,
+                                    link_precedence=Contact.LinkPrecedence.PRIMARY
+                                )
+            matched_pid = saved_contact.id
         elif matched_email is None:
             if matched_phone.link_precedence == Contact.LinkPrecedence.PRIMARY:
                 matched_phone_pid = matched_phone.id
@@ -64,7 +72,7 @@ def handler(event):
                                     link_precedence=Contact.LinkPrecedence.SECONDARY
                                 )
             new_contact.save()
-            matched_pid = new_contact.id
+            matched_pid = matched_phone_pid
         elif matched_phone is None:
             if matched_email.link_precedence == Contact.LinkPrecedence.PRIMARY:
                 matched_email_pid = matched_email.id
@@ -76,7 +84,7 @@ def handler(event):
                                     link_precedence=Contact.LinkPrecedence.SECONDARY
                                 )
             new_contact.save()
-            matched_pid = new_contact.id
+            matched_pid = matched_email_pid
         else:
             if matched_phone.id == matched_email.id:
                 if matched_email.link_precedence == Contact.LinkPrecedence.PRIMARY:
@@ -108,7 +116,7 @@ def handler(event):
                     matched_pid = matched_email_pid
                     # Link every secondary of op to new primary
                     Contact.objects.filter(linked_id=matched_phone_pid).update(linked_id=matched_pid)
-                else:
+                elif matched_phone_pid < matched_email_pid:
                     # Get old Primary of contact with email match
                     matched_email_op = Contact.objects.get(id=matched_email_pid)
 
@@ -120,6 +128,8 @@ def handler(event):
                     matched_pid = matched_phone_pid
                     # Link every secondary of op to new primary
                     Contact.objects.filter(linked_id=matched_email_pid).update(linked_id=matched_pid)
+                else:
+                    matched_pid = matched_phone_pid
         primary_id = matched_pid
         
  
@@ -131,28 +141,28 @@ def handler(event):
 
     # Get primary email and phone number
     try:
-        primary_contact = Contact.objects.get(id=primary_id)
+        primary_contact = Contact.objects.get(id=primary_id, link_precedence=Contact.LinkPrecedence.PRIMARY)
         email_array.append(primary_contact.email)
         phone_array.append(primary_contact.phone_number)
     except ObjectDoesNotExist:
         pass
 
     # Get all emails of this contact to include in response
-    other_emails = Contact.objects.filter(linked_id=primary_id).values_list('email', flat=True)
+    other_emails = Contact.objects.filter(linked_id=primary_id, link_precedence=Contact.LinkPrecedence.SECONDARY).values_list('email', flat=True)
     email_array.extend(other_emails)
 
     # Get all phone numbers of this contact to include in response
-    other_phones = Contact.objects.filter(linked_id=primary_id).values_list('phone_number', flat=True)
+    other_phones = Contact.objects.filter(linked_id=primary_id, link_precedence=Contact.LinkPrecedence.SECONDARY).values_list('phone_number', flat=True)
     phone_array.extend(other_phones)
 
-    other_ids = Contact.objects.filter(linked_id=primary_id).values_list('id', flat=True)
-    secondary_contact_ids.extend(other_ids)
+    secondary_contact_ids = list(Contact.objects.filter(linked_id=primary_id, link_precedence=Contact.LinkPrecedence.SECONDARY).values_list('id', flat=True))
+    
 
     # Prepare response and return it
     contactResp = {
         "primaryContactID": primary_id,
-        "emails": email_array,
-        "phoneNumbers": phone_array,
+        "emails": list(OrderedDict.fromkeys(email_array)),
+        "phoneNumbers": list(OrderedDict.fromkeys(phone_array)),
         "secondaryContactIds": secondary_contact_ids
     }
     resp = {"contact": contactResp}
