@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -75,10 +76,23 @@ WSGI_APPLICATION = 'id_recon_django.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#     }
+# }
+
+DATABASE_PASSWORD = config('DATABASE_PASSWORD')
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'idrecon',
+        'USER': 'idreconuser',
+        'PASSWORD': DATABASE_PASSWORD,
+        'HOST': 'dpg-cqk0gs9u0jms73doh4h0-a.singapore-postgres.render.com',  # Or the IP address of your PostgreSQL server
+        'PORT': '5432',       # Default port for PostgreSQL
     }
 }
 

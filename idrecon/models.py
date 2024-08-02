@@ -5,7 +5,7 @@ class Contact(models.Model):
         PRIMARY = "primary", "Primary"
         SECONDARY = "secondary", "Secondary" # For localisation use _("Secondary")
 
-    id = models.IntegerField(primary_key=True)
+    id = models.AutoField(primary_key=True)
     phone_number = models.CharField(max_length=10, blank=True, null=True)
     email = models.CharField(max_length=255, blank=True, null=True)
     linked_id = models.IntegerField(blank=True, null=True)
